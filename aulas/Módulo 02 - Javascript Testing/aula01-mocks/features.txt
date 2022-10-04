@@ -1,0 +1,12 @@
+
+/*
+  * aqui vamos descrever nossas regras de negócio ou "caso de teste"
+  * sabemos que usualmente nossos casos de testes são geralmente descritos em ingles
+  * então a sentenção "should be...", "should have...", "should not..." serão vistas com frequencia.
+*/ 
+
+# Exemplos de regras de negócio/casos de uso para serem testados
+
+the file should have id, name, profession, and age fields
+the file should not be empty
+the file should not be longer than 4 lines incluind headers
