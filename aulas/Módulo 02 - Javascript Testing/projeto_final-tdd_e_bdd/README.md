@@ -37,3 +37,84 @@
 
 - Faker
   - É uma lib para geração de dados de forma automatica e randomizada
+  
+---
+
+# Projeto Fnal - TDD & BDD - Parte 02
+
+- Vamos primeiro criar as camadas (a nível de estrutura)
+- Criamos o diretorio `repository/base` e o arquiv `baseRepository.js`
+- Como nosso banco de dados vai ser em arquivo nosso baseRepository vai receber o nome do arquivo sempre que for instanciado e vamos definir o método `find(itemId)`
+  - Importando o `readFile` do pacote `fs/promise`
+  - No método vamos fazer um `JSON.parse(await readFile(this.file))` no arquivo recebido
+  - E retornamos então o objeto obitdo a partir do método `find(({ id }) => id === itemId)` que será realizado sobre o array
+  - Lembrando que essa camada está **"simulando"** a integração com o banco de dados já que nosso banco está offiline e em arquivos `.json`
+- Seguimos criando o diretório `service` e o arquivo `carService.js` que ira conter as regras de negócios
+  - No construtor da classe `CarService` vamos receber um arquivo (já que iremos injetar o baseRepository) e então definir o `carRepository` como uma instancia do `BaseRepository` passando o arquivo recebido no construtor para nova instancia
+  - Em seguida criamos um método `test` só para validar a estrutura do projeto, chamando o método `find` do `carRepository`
+- Agora dentro do diretório `test` vamos criar a camada de testes unitários definindo um novo diretório `unitTests`
+  - Vamos iniciar com o arquivo `carService.test.js`
+  - Fazemos a instação das seguintes dependências de desenvolvimento:
+    - mocha@8
+    - nyc@15
+    - sinon@9
+  - Copiamos os arquivos de config do nyc e os scripts da aula 04 e ajustamos as estruturas de diretórios, onde for necessário nessas configs
+  - Importamos o mocha, descrevemos uma suite de testes para o CarService
+  - Criamos um testes inicial somente para validação da estrutura e rodamos
+  - E assim temos uma estrutura "ok"
+- Agora vamos de fato nossos testes e a implementação dos nossos UseCases
+  - Nesse primeiro teste, precisamos pegar um carro disponivel e aletaório de dentro de uma categoria
+  - Iniciamo com o método `before` fazendo a instancia do nosso `carService`
+  - Importamos o nosso `database` de `CarService` normalizando o path
+  - Injetamos o `database` como dependência na instancia do `CarService` como ja era esperado
+  - Dessa forma podemos fazer o a chmada do método `test` definido no service e logamos o resultado obtido
+  - Podemos então remover esse método pois era exclusivamente didatico e para validação da estrutura do nosso sistema
+  - Seguimos definindo o método `getAvailableCar(carCategory)` que vai retornar null inicialmente
+  - Importamos o método `assert` do pacote `assert` e vamos definir que o resultado esperado não seja nulo
+  - Na sequencia vamos criar os `mocks` começando por criar o diretório `test/mocks` e criando os seguintes arquivos inicialmente:
+    - `valid-car.json`
+    - `valid-carCategoru.json`
+    - `valid-customer.json`
+  - Em seguida copiamos e colamos do nosso `database` um exemplo de cada item gerado para nossos respectivos `mocks`
+  - Importamos os mocks
+  - Um ponto importante é criar uma instancia do `carCategory` utilizando o método `Objet.create()` para termos umas instancia imutavel do objeto em questão, isso por que ao buscar por Id podemos sujar a base de dados e corromper os outros testes já que novamente o objeto é uma instancia e assim podemos modificar o objeto `carCategory` definido pela instancia sem realmente alterar o objeto pai que no caso é o `mock` do `valid-carCategory` importado
+  - Inserimos o `car.Id` para dentro do `carCategory.ids`
+  - E agora nossa chamamos o método que ira buscar um carro disponivel de acordo com a categoria `carService.getAvailableCar(carCategory)`, conforme previsto no nosso primeiro useCase do `story`
+  - Então nosso `expetected` deverá ser a instancia do `mock` logo `expected = car`
+  - Como iremos também tratar o `BDD` aqui iremos remover o import do `assert` e em seguida instalar o modulo
+    - chai@4
+  - Para que nossa asserção seja feita com base no `BDD` deixando o método mais semantico
+  - Agora então fazemos a seguinte asserção `expect(result).to.be.deep.equal(expected)`
+- Nesse momento vemos que houve um grande erro da nossa parte, não de código, mas sim de pensamente, uma vez que o criterio de aceite estava bem definido mas não implementamos da maneira correta
+  - Seguimos então desenvolvendo uma função que pega uma posição randomica de um array (dado a regra de negócio mencionada no criterio de aceite)
+  - Então, dado um array devemos retornar a posição aletória de um array ao receber um array
+  - Essa função ainda não esta definida no `carService` e veja, aqui sim temos a aplicação do `TDD`, pois estamos pensando em testes antes mesmo da implementação
+  - Nossa asserção aqui deverá esperar que o resultado seja menor o igual ao tamanho total do array e maior ou igual que 0, já que nossa função retornara um index do nosso array
+  - Agora vamos seguir com a implentação da função, já que nesse caso o teste quebrará e novamente atenderemos ao "padrão" de `TDD`
+  - Definimos e implementamos o método `getRandomPositionFromArray(list)`
+  - Em seguida vamos definir um outro caso de teste, que é pegar sempre o primeiro `carId` da nossa lista de carros, como um carro valido
+  - Definimos então um `carIndex = 0` e o `expected = carCategory.carIds[carIndex]` assim temos que o nosso item esperado é `carCategory.carIds[0]` sendo o primeiro Id do array de `carIds`
+  - Definimos e implementamos o método `chooseRandomCar(carCategory)`, onde iremos fazer uso do método `getRandomPositionFromArray` que implementamos e testamos anteriormente
+  - E ao rodarmos vemos que o teste não passa, já que a asserção feita `expect(result).to.be.deep.equal(expected)` não foi satisfeita
+  - Então devemos colocar um `stub` no método `getRandomPositionFromArray` para que ele sempre retornone `0`
+  - Importamos o `sinon` e os métodos necessários para podemos criar o `stub`
+  - Dessa vez iremos criar um `sandBox` para que toda vez que um teste for executado as instancias do stub sejam limpas garantindo que não teremos problemas com esse stub em cada rodada de teste
+  - Então 
+    - `beforeEach( () => { sandbox = sinom.createSandbox() })`
+  - Em seguida 
+    - `afterEach(() => sandbox = sinon.createSandbox())`
+  - Agora dentro do nosso teste fazemos
+    - `sandbox.stunb(carService, carService.getRandomPositionFromArray.name).returns(carIndex)`
+  - E rodando o teste, teremos sucesso
+  - Já que por baixo dos panos uma `stub` faz a utilização do `spy` e então podemos fazer a seguinte asserção:
+    - `expect(carService.getRandomPositionFromArray.calledOnce).to.be.ok`
+    - E nosso teste seguirá passando
+  - Podemos agora seguir com nosso teste de useCase e ao rodarmos veremos que nosso teste ainda não passará, pois o método não está implementado
+  - Seguimos então com a implementação do método `getAvailableCar(carCategory)`, onde iremos gerar um `carId` randomico e depois iremos buscar em nosso banco de dados o carro com `carRepository.find(carId)` e retornar o `car`
+  - Salvando nosso teste passará mas ainda não estamos fazendo o teste corretamente, pois o mesmo ainda vai buscar infos no banco de dados e nossos testes não devem depender do banco
+  - Para isso fazemos um `stub` do método `getAvailableCar` para que ele retorne o nosso objeto `car` mokcado
+  - E adicionamos também um spy ao carService para observar se o método `chooseRandomCar` foi chamado conforme o esperado
+  - Fazemos as asserções:
+    - `expect(carService.chooseRandomcar.calledOnce).to.be.ok`
+    - `expect(carService.carRepository.find.calledWithExactly(car.id)).to.be.ok`
+  - Assim nosso teste seguirá passando
