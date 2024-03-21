@@ -1,13 +1,15 @@
-# Projeto Fnal - TDD & BDD - Parte 01
+# Projeto Fnal - TDD & BDD
 
-## O que iremos fazer?
+## Projeto Fnal - TDD & BDD - Parte 01
+
+### O que iremos fazer?
 
 - Iremos desenvolver "todo" backend necessário para que possamos construir uma aplicação que consuma e gere dados e que possamos testar simulando uma empresa de aluguel de carros
 - Iremos aplicar o padrão de repositories além de trabalhar com layers
 - Não iremos implementar um "front-end" para nosso projeto
 - Iremos aplicar os conceitos e técnicas de TDD, BDD e Testes unitários já vistos
 
-## Mão na massa
+### Mão na massa
 
 - iniciamos o projeto com o comando
   - `npm init -y`
@@ -33,14 +35,14 @@
   - executamos um étodo `write` para cada objeto que definimos anteriormente
   - voltando ao loop utilizado para `Car`, vamos criar os objetos `Customer` ainda utilizando o `faker`
 
-## - Libs
+### - Libs
 
 - Faker
   - É uma lib para geração de dados de forma automatica e randomizada
   
 ---
 
-# Projeto Fnal - TDD & BDD - Parte 02
+## Projeto Fnal - TDD & BDD - Parte 02
 
 - Vamos primeiro criar as camadas (a nível de estrutura)
 - Criamos o diretorio `repository/base` e o arquiv `baseRepository.js`
@@ -99,9 +101,9 @@
   - Então devemos colocar um `stub` no método `getRandomPositionFromArray` para que ele sempre retornone `0`
   - Importamos o `sinon` e os métodos necessários para podemos criar o `stub`
   - Dessa vez iremos criar um `sandBox` para que toda vez que um teste for executado as instancias do stub sejam limpas garantindo que não teremos problemas com esse stub em cada rodada de teste
-  - Então 
+  - Então
     - `beforeEach( () => { sandbox = sinom.createSandbox() })`
-  - Em seguida 
+  - Em seguida
     - `afterEach(() => sandbox = sinon.createSandbox())`
   - Agora dentro do nosso teste fazemos
     - `sandbox.stunb(carService, carService.getRandomPositionFromArray.name).returns(carIndex)`
@@ -118,3 +120,215 @@
     - `expect(carService.chooseRandomcar.calledOnce).to.be.ok`
     - `expect(carService.carRepository.find.calledWithExactly(car.id)).to.be.ok`
   - Assim nosso teste seguirá passando
+
+## Projeto Fnal - TDD & BDD - Parte 03
+
+- Iniciamos o desenvolvimento com a classe `Tax` para guardar todas as taxas com base na idade
+  
+  ```js
+    class Tax {
+      // get aqui é usado para retornar automaticamente o array
+      // ao utilizar o método taxesBasedOnAge().get()
+      static get taxesBasedOnAge() {
+        return [
+        { from 18, to: 25, then: 1.1 },
+        { from 26, to: 30, then: 1.5 },
+        { from 31, to: 100, then: 1.3 },
+      ]
+      }
+    }
+
+    module.exports = Tax
+  ```
+
+- Seguindo para nossa suite de testes, vamos inserir mais um teste para calcular o valor do seguro dado um `carCategory`, o `customer` e o `numberOfDays`
+
+  ```js
+  [...]
+    it('given a carCategory, customer and numberOfDays it should calculate final amount in R$', async() => {
+      // Lembrando que de utilizar Object.create caso seja necessário alterar o mock sem suja-lo
+      const customer = Object.create(mocks.validCustomer)
+      customer.age = 50
+
+      const carCategory = Object.create(mocks.validCarCategory)
+      carCategory.price = 37.6
+
+      const numberOfDays = 5
+
+      // Movido para o carService, como propriedade
+      // Aqui iremos utilizar a API de localization nativa do node
+      // para formatar a saida em R$ como especificado 
+      // const expected = new Intl.numberFormat('pt-br', {
+      //   style: 'currency',
+      //   currency: 'BRL'
+      // }).format(244.40)
+      //console.log('expected: ', expected)
+
+      // Não depender de dados externos (ou mudança de classe)
+      sandBox.stub(
+        carService,
+        "taxesBasedOnAge"
+      ).get(() => [{ from: 40, to:50, then: 1.3 }])
+
+      const expected = carService.currencyFormat.format(244.40)
+      const result = carService.caculateFinalPrice(
+        customer, 
+        carCategory, 
+        numberOfDays
+      )
+
+      // Aqui como esperado pelo TDD, nesse momento o teste vai falhar
+      // Pois não há ainda a implementação do método calculateFinalPrice()
+      expect(result).to.be.deep.equal(expected)
+    })
+  ```
+
+- Vamos seguir agora para implementação do método que faz o calculo do valor final `calculateFinalPrice()` no arquivo `carService.js`
+
+```js
+  [...]
+  // É preciso injetar a classe Tax criada anteriormente nessa classe
+  // Para que possamos buscar a taxa de acordo com a idade do usuário recebido
+  calculateFinalPrice(customer, carCategory, numberOfDays) {
+    const { age } = customer
+    const { price } = carCategory.price
+    // Aqui estamos "apelidando" o then como "tax"
+    const { then: tax } = this.taxesBasedOnAge.find(tax => age >= tax.from && age <= tax.to)
+
+    //console.log('then: ', then)
+
+    const finalPrice = ((tax * price) * (numberOfDays))
+    const formattedPrice = this.currencyFormat.format(finalPrice)
+
+    return formattedPrice
+  }
+```
+
+- Seguimos agora para o terceiro user history
+- Começamos com a criação do caso de testes implementando:
+
+  ```js
+    ...
+
+    it('given a customer and a car category it should return a transaction receipt'm async () =>{
+      const Transaction = require("./../../entities/transaction")
+      ...
+      const car = mocks.validCar
+      // Rest spread
+      // Outra forma de não sujar o mock e criar um objeto 100% novo
+      const carCategory =  {
+        ...mocks.validCarCtegory,
+        price: 37.6,
+        carIds: [car.Id]
+      }
+      const customer = Object.Create(mocks.validCustomer)
+      custumer.age = 20
+      
+      const numberOfDays = 5
+      const dueDate = "10 novembro de 2020"
+
+      // Precisamos mockar o comportamento do JS
+      // Para que quando fizermos a instancia de uma nova data sempre retorne uma data padrão
+      // Lembrando que no array de datas do JS o mes começa em 0
+      const now = new Date(2020,10,5)
+      sandbox.useFakeTimers(now.getTime())
+
+      // Para validar o comportamento mockado
+      //console.log("now 01: ", now)
+      // console.log("now 01: ", new Date())
+      
+      // Montando uma data teste com a API de datas do JS
+      // const today = new Date()
+      // const options = {
+      //   year: "numeric",
+      //   month: "long",
+      //   day: "numeric"
+      // }
+
+      // console.log('today: ', today.toLocaleDateString("pt-br", options))
+
+      // age: 20, tax: 1.1, categoryPrice: 37.6
+      // 37.6 * 1.1 = 41.36 * 5 days = 206.8
+      sandbox.stub(
+        carService.carRepository,
+        carService.carRepository.find.name
+      ).resolves(car)
+
+      const expectedAmout = carService.currencyFormat.format(206.8)
+      const result = await carService.rent(
+        customer, carCategory, numberOfDays
+      )
+
+      const expected = new Transaction({
+        customer,
+        car,
+        dueDate,
+        amout: expectedAmout
+      })
+
+      expect(result).to.be.deep.equal(expected)
+
+    })
+  ```
+
+- Na sequencia vamos criar a classe `Transaction` para que nosso "recibo" seja feito da forma adequada
+- A implementação fica:
+
+  ```js
+    class Transaction {
+      constructor({ customer, car, amout, dueDate }) {
+        this.customer = customer
+        this.car = car
+        this.amout = amout
+        this.dueDate = dueDate
+      }
+    }
+
+    module.exports = Transaction
+  ```
+
+- Agora na classe service e implementar o método `rent()`
+
+  ```js
+    const Transaction = require('./../entities/transcation')
+    ...
+    async rent(customer, carCategory, numberOfDays) {
+      const car = await this.getAvaiableCar(carCategory)
+      const finalPrice = await this.caculateFinalPrice(customer, carCategory, numberOfDays)
+
+      const today = new Date()
+
+      today.setDate(today.getDate() + numberofDays)
+      const options = {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      }
+      const dueDate = today.toLocaleDateString("pt-br", options)
+
+      const transaction = new Transcation({
+        customer,
+        dueDate,
+        car,
+        amaount = finalPrice
+      })
+
+      //console.log(transaction)
+
+      return transaction
+    }
+  ```
+
+- Rodando o comando `test:cov` vemos que não obtivemos `100%` de teste
+- Isso se da pq a classe base dos repositories é uma classe abastrata e geralmente uma classe abstrata não tem uma implementação geral e acabamos não testando diretamente, pois testamos as classes que herdam ela
+- Então ou podemos desconsiderar esses casos, ou então implementar um caso de teste
+- Mas como já fizemos a implementação da classe concreta, vamos desconsidera-lo
+- No arquivo `.nycrc.json` adicionamoms a seguinte linha:
+  
+  ```json
+    ...
+    "exclude": ["src/repository/base/*.js"]
+  ```
+
+- Novamente por ser uma classe abstrata estamos removendo do covarege pois devemos testar as classes que utilizam ela
+- Rodando de o comando `teste:cov` novamente veremos uma cobertura de `100%` como esperado
